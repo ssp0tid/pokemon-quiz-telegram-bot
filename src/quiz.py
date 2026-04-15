@@ -1,5 +1,6 @@
 import asyncio
 import time as time_module
+from telethon.tl.types import KeyboardButton, ReplyKeyboardMarkup
 from questions import get_questions_for_category, get_random_questions
 from categories import get_category_by_id, get_category_name
 from hints import HintSystem
@@ -98,7 +99,9 @@ class QuizGame:
             f"{hint_text}"
         )
 
-        keyboard = [[opt[1] for opt in question["options"]]]
+        keyboard = ReplyKeyboardMarkup(
+            [[KeyboardButton(text=opt[1]) for opt in question["options"]]], resize=True
+        )
 
         sent = await self.client.send_message(
             self.event.chat_id, message, buttons=keyboard, parse_mode="md"
