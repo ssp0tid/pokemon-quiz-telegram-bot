@@ -1,6 +1,6 @@
 import asyncio
 import time as time_module
-from telethon.tl.types import KeyboardButton, ReplyKeyboardMarkup
+from telethon.tl.types import KeyboardButton, KeyboardButtonRow, ReplyKeyboardMarkup
 from questions import get_questions_for_category, get_random_questions
 from categories import get_category_by_id, get_category_name
 from hints import HintSystem
@@ -100,7 +100,12 @@ class QuizGame:
         )
 
         keyboard = ReplyKeyboardMarkup(
-            [[KeyboardButton(text=opt[1]) for opt in question["options"]]], resize=True
+            [
+                KeyboardButtonRow(
+                    [KeyboardButton(text=opt[1]) for opt in question["options"]]
+                )
+            ],
+            resize=True,
         )
 
         sent = await self.client.send_message(

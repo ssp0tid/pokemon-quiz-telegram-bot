@@ -2,7 +2,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
-from telethon.tl.types import KeyboardButton
+from telethon.tl.types import KeyboardButton, KeyboardButtonRow
 from telethon.tl.types import ReplyKeyboardMarkup, ReplyKeyboardHide
 
 from database import (
@@ -50,8 +50,8 @@ def build_category_keyboard():
     buttons.append(KeyboardButton(text="🎲 Random Mix"))
     buttons.append(KeyboardButton(text="❌ Cancel"))
 
-    rows = [[btn] for btn in buttons[:-2]]
-    rows.append([buttons[-2], buttons[-1]])
+    rows = [KeyboardButtonRow([btn]) for btn in buttons[:-2]]
+    rows.append(KeyboardButtonRow([buttons[-2], buttons[-1]]))
 
     return ReplyKeyboardMarkup(rows, resize=True)
 
