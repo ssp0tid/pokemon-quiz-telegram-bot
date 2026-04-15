@@ -2,25 +2,21 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
-from telethon.tl.types import KeyboardButton, KeyboardButtonRow
-from telethon.tl.types import ReplyKeyboardMarkup, ReplyKeyboardHide
+from telethon.tl.types import (
+    KeyboardButton,
+    KeyboardButtonRow,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardHide,
+)
 
 from database import (
     init_db,
     reset_daily_leaderboard,
     reset_weekly_leaderboard,
     get_or_create_user,
-    update_after_question,
-    update_streak,
     get_top_players,
     get_user_stats,
     get_user_rank,
-    update_category_score,
-    update_daily_score,
-    update_weekly_score,
-    create_game_session,
-    update_game_session,
-    complete_game_session,
 )
 from categories import get_category_list, get_category_by_id
 from questions import get_question_count
@@ -56,14 +52,18 @@ def build_category_keyboard():
     return ReplyKeyboardMarkup(rows, resize=True)
 
 
-def is_category_button(message):
-    text = message.strip()
+def get_selected_category(text):
     if text in ["🎲 Random Mix", "❌ Cancel"]:
-        return True
+        return text
     for cat in get_category_list():
         if text == f"{cat['emoji']} {cat['name']}":
-            return True
-    return False
+            return cat["id"]
+    return None
+
+
+async def cleanup_game(user_id):
+    if user_id in active_games:
+        del active_games[user_id]
 
 
 async def main():
@@ -266,10 +266,7 @@ async def main():
         if user_id in active_games:
             game = active_games[user_id]
             game.stop()
-            del active_games[user_id]
-            await event.reply(
-                "✅ Quiz stopped. Progress saved.", buttons=ReplyKeyboardHide()
-            )
+            await event.reply("✅ Quiz stopped.", buttons=ReplyKeyboardHide())
         else:
             await event.reply("No active quiz to stop.")
 
@@ -277,13 +274,27 @@ async def main():
     async def handle_hint(event):
         user_id = event.sender.id
 
-        if user_id in active_games:
-            game = active_games[user_id]
-            await game.use_hint()
-        else:
+        if user_id not in active_games:
             await event.reply("❌ No active quiz. Start with /quiz!")
+            return
 
-    @client.on(events.NewMessage(func=lambda e: is_category_button(e.message.message)))
+        game = active_games[user_id]
+        if not game.is_active:
+            await event.reply("❌ No active quiz. Start with /quiz!")
+            return
+        await game.use_hint()
+
+    @client.on(
+        events.NewMessage(
+            func=lambda e: (
+                e.message.message in ["❌ Cancel", "🎲 Random Mix"]
+                or any(
+                    e.message.message == f"{cat['emoji']} {cat['name']}"
+                    for cat in get_category_list()
+                )
+            )
+        )
+    )
     async def handle_category_selection(event):
         user_id = event.sender.id
         text = event.message.message
@@ -298,17 +309,23 @@ async def main():
             return
 
         category = "mixed"
-        for cat in get_category_list():
-            if text == f"{cat['emoji']} {cat['name']}":
-                category = cat["id"]
-                break
+        if text == "🎲 Random Mix":
+            category = "mixed"
+        else:
+            for cat in get_category_list():
+                if text == f"{cat['emoji']} {cat['name']}":
+                    category = cat["id"]
+                    break
 
         await event.reply("🎮 Starting quiz! Get ready...", buttons=ReplyKeyboardHide())
 
-        game = QuizGame(client, event, user_id)
+        async def on_game_end(uid):
+            if uid in active_games:
+                del active_games[uid]
+
+        game = QuizGame(client, event, user_id, on_end_callback=on_game_end)
         active_games[user_id] = game
-        await game.start(category)
-        del active_games[user_id]
+        asyncio.create_task(game.start(category))
 
     @client.on(events.NewMessage())
     async def handle_answer(event):
@@ -321,7 +338,10 @@ async def main():
         if not game.is_active:
             return
 
-        answer = event.message.message
+        answer = event.message.message.strip()
+        if not answer:
+            return
+
         await game.handle_answer(answer)
 
     await client.run_until_disconnected()

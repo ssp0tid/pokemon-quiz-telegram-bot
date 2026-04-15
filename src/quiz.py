@@ -2,7 +2,7 @@ import asyncio
 import time as time_module
 from telethon.tl.types import KeyboardButton, KeyboardButtonRow, ReplyKeyboardMarkup
 from questions import get_questions_for_category, get_random_questions
-from categories import get_category_by_id, get_category_name
+from categories import get_category_by_id
 from hints import HintSystem
 import database
 from database import (
@@ -21,16 +21,18 @@ from database import (
 
 
 class QuizGame:
-    def __init__(self, client, event, user_id):
+    def __init__(self, client, event, user_id, on_end_callback=None):
         self.client = client
         self.event = event
         self.user_id = user_id
+        self.on_end_callback = on_end_callback
         self.questions = []
         self.current_question_index = 0
         self.score = 0
         self.correct_answers = 0
         self.hints_used = 0
         self.timer_task = None
+        self.answer_received = asyncio.Event()
         self.hint_system = HintSystem(2)
         self.question_start_time = None
         self.session_id = None
@@ -40,8 +42,7 @@ class QuizGame:
         self.points_correct = 10
         self.points_time_bonus = 5
         self.is_active = False
-        self.message_id = None
-        self.cancel_event = asyncio.Event()
+        self._cleanup_done = False
 
     async def start(self, category="mixed"):
         get_or_create_user(self.user_id, None, None)
@@ -79,11 +80,12 @@ class QuizGame:
 
     async def show_question(self):
         if not self.is_active or self.current_question_index >= len(self.questions):
-            await self.end_quiz()
+            await self._cleanup()
             return
 
         question = self.questions[self.current_question_index]
         self.question_start_time = time_module.time()
+        self.answer_received.clear()
 
         available_hints = self.hint_system.get_available_hints(self.session_id)
         question_number = self.current_question_index + 1
@@ -112,51 +114,57 @@ class QuizGame:
             self.event.chat_id, message, buttons=keyboard, parse_mode="md"
         )
 
-        self.message_id = sent.id if hasattr(sent, "id") else None
         self.start_timer()
 
     def start_timer(self):
         if self.timer_task and not self.timer_task.done():
             self.timer_task.cancel()
-        self.timer_task = asyncio.create_task(self.timer_loop())
+        self.timer_task = asyncio.create_task(self._timer_loop())
 
-    async def timer_loop(self):
+    async def _timer_loop(self):
         try:
             await asyncio.sleep(self.question_timeout)
-            if self.is_active:
-                await self.handle_timeout()
+            if self.is_active and not self.answer_received.is_set():
+                await self._handle_timeout()
         except asyncio.CancelledError:
             pass
 
-    async def handle_timeout(self):
-        self.is_active = False
+    async def _handle_timeout(self):
+        if not self.is_active:
+            return
 
         question = self.questions[self.current_question_index]
 
+        update_streak(self.user_id, False)
+
         await self.reply(
             f"⏰ *Time's up!*\n\n"
-            f"The correct answer was: {question['correct_emoji']} *{question['answer']}*\n\n"
-            f"Moving to next question...",
+            f"The correct answer was: {question['correct_emoji']} *{question['answer']}*",
             parse_mode="md",
         )
 
-        database.UserStats.update_streak(self.user_id, False)
-
         await asyncio.sleep(2)
         self.current_question_index += 1
-        self.is_active = True
-        await self.show_question()
+
+        if self.current_question_index >= len(self.questions):
+            await self._cleanup()
+        else:
+            await self.show_question()
 
     async def handle_answer(self, answer):
         if not self.is_active:
             return
+
+        if self.answer_received.is_set():
+            return
+        self.answer_received.set()
 
         if self.timer_task:
             self.timer_task.cancel()
 
         question = self.questions[self.current_question_index]
         time_elapsed = time_module.time() - self.question_start_time
-        is_correct = answer.lower() == question["answer"].lower()
+        is_correct = answer.lower().strip() == question["answer"].lower().strip()
 
         if is_correct:
             self.correct_answers += 1
@@ -199,7 +207,7 @@ class QuizGame:
         self.current_question_index += 1
 
         if self.current_question_index >= len(self.questions):
-            await self.end_quiz()
+            await self._cleanup()
         else:
             await self.show_question()
 
@@ -224,14 +232,15 @@ class QuizGame:
 
         await self.reply(hint, parse_mode="md")
 
-    async def end_quiz(self):
+    async def _cleanup(self):
+        if self._cleanup_done:
+            return
+        self._cleanup_done = True
         self.is_active = False
+
         if self.timer_task:
             self.timer_task.cancel()
-
-        stats = get_user_stats(self.user_id)
-        percentage = round((self.correct_answers / len(self.questions)) * 100)
-        rank = get_user_rank(self.user_id)
+            self.timer_task = None
 
         complete_game_session(
             self.session_id,
@@ -240,6 +249,14 @@ class QuizGame:
             len(self.questions),
             self.hints_used,
         )
+
+        stats = get_user_stats(self.user_id)
+        percentage = (
+            round((self.correct_answers / len(self.questions)) * 100)
+            if self.questions
+            else 0
+        )
+        rank = get_user_rank(self.user_id)
 
         if percentage >= 90:
             emoji = "🏆"
@@ -267,6 +284,9 @@ class QuizGame:
             parse_mode="md",
         )
 
+        if self.on_end_callback:
+            await self.on_end_callback(self.user_id)
+
     async def reply(self, message, parse_mode="md"):
         await self.client.send_message(
             self.event.chat_id, message, parse_mode=parse_mode
@@ -276,3 +296,6 @@ class QuizGame:
         self.is_active = False
         if self.timer_task:
             self.timer_task.cancel()
+            self.timer_task = None
+        if self.on_end_callback:
+            asyncio.create_task(self.on_end_callback(self.user_id))
