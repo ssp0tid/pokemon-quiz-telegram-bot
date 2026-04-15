@@ -295,9 +295,9 @@ class QuizGame:
         if self.on_end_callback:
             await self.on_end_callback(self.user_id)
 
-    async def reply(self, message, parse_mode="md"):
+    async def reply(self, message, parse_mode="md", buttons=None):
         await self.client.send_message(
-            self.event.chat_id, message, parse_mode=parse_mode
+            self.event.chat_id, message, parse_mode=parse_mode, buttons=buttons
         )
 
     def stop(self):
