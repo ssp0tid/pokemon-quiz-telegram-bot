@@ -8,10 +8,320 @@ def shuffle_array(arr):
     return shuffled
 
 
+TYPE_POOL = [
+    "Normal",
+    "Fire",
+    "Water",
+    "Electric",
+    "Grass",
+    "Ice",
+    "Fighting",
+    "Poison",
+    "Ground",
+    "Flying",
+    "Psychic",
+    "Bug",
+    "Rock",
+    "Ghost",
+    "Dragon",
+    "Dark",
+    "Steel",
+    "Fairy",
+    "Normal/Flying",
+    "Fire/Flying",
+    "Water/Flying",
+    "Grass/Poison",
+    "Fire/Ground",
+    "Bug/Poison",
+    "Ground/Flying",
+    "Grass/Flying",
+    "Ice/Flying",
+    "Psychic/Flying",
+    "Bug/Flying",
+    "Poison/Flying",
+    "Fire/Fighting",
+    "Grass/Fighting",
+    "Electric/Steel",
+    "Water/Psychic",
+    "Grass/Psychic",
+    "Fire/Psychic",
+    "Normal/Psychic",
+    "Rock/Water",
+    "Bug/Grass",
+    "Rock/Ground",
+    "Water/Ground",
+    "Rock/Fighting",
+    "Water/Fighting",
+    "Bug/Fire",
+    "Bug/Rock",
+    "Bug/Steel",
+    "Poison/Ground",
+    "Poison/Bug",
+    "Ground/Rock",
+    "Ground/Steel",
+    "Rock/Steel",
+    "Normal/Rock",
+    "Fire/Rock",
+    "Bug/Ground",
+    "Water/Ground",
+    "Electric/Dragon",
+    "Psychic/Dragon",
+    "Dragon/Flying",
+    "Psychic/Fairy",
+    "Steel/Fairy",
+    "Ghost/Poison",
+    "Ghost/Fire",
+    "Ghost/Grass",
+    "Dark/Psychic",
+    "Dark/Ghost",
+    "Dark/Fighting",
+    "Steel/Electric",
+    "Steel/Ice",
+    "Steel/Fire",
+    "Steel/Rock",
+    "Normal/Ice",
+    "Water/Ice",
+    "Ice/Psychic",
+    "Ice/Ghost",
+    "Ice/Dragon",
+    "Ice/Steel",
+    "Grass/Ice",
+    "Grass/Steel",
+    "Grass/Dragon",
+    "Grass/Fire",
+    "Ground/Steel",
+    "Ground/Poison",
+    "Ground/Fighting",
+    "Flying/Normal",
+    "Flying/Poison",
+    "Flying/Fighting",
+    "Flying/Bug",
+    "Flying/Fairy",
+]
+
+NUMBER_POOL = [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+    "18",
+    "19",
+    "20",
+    "25",
+    "30",
+    "35",
+    "40",
+    "45",
+    "50",
+    "60",
+    "65",
+    "70",
+    "75",
+    "80",
+    "85",
+    "90",
+    "95",
+    "100",
+    "105",
+    "110",
+    "115",
+    "120",
+    "125",
+    "130",
+    "135",
+    "140",
+    "145",
+    "150",
+    "151",
+    "152",
+    "155",
+    "160",
+    "165",
+    "170",
+    "175",
+    "180",
+    "185",
+    "190",
+    "195",
+    "200",
+    "250",
+    "300",
+    "350",
+    "400",
+    "450",
+    "500",
+    "10%",
+    "50%",
+    "100%",
+    "60 minutes",
+    "120 minutes",
+]
+
+REGION_POOL = [
+    "Kanto",
+    "Johto",
+    "Hoenn",
+    "Sinnoh",
+    "Unova",
+    "Kalos",
+    "Alola",
+    "Galar",
+    "Paldea",
+    "Indigo Plateau",
+    "New Bark Town",
+    "Pallet Town",
+    "Cerulean City",
+    "Lavender Town",
+]
+
+PROFESSOR_POOL = [
+    "Professor Oak",
+    "Professor Elm",
+    "Professor Birch",
+    "Professor Rowan",
+    "Professor Juniper",
+    "Professor Sycamore",
+    "Professor Kukui",
+    "Professor Magnolia",
+    "Professor Sada",
+    "Professor Turo",
+    "Professor Burnet",
+    "Professor Cole",
+    "Professor Karan",
+    "Professor Pino",
+    "Professor Laven",
+]
+
+ITEM_POOL = [
+    "Fire Stone",
+    "Water Stone",
+    "Thunder Stone",
+    "Leaf Stone",
+    "Moon Stone",
+    "Sun Stone",
+    "Shiny Stone",
+    "Dusk Stone",
+    "Dawn Stone",
+    "Oval Stone",
+    "King's Rock",
+    "Metal Coat",
+    "Dragon Scale",
+    "Upgrade",
+    "Dubious Disc",
+    "Protector",
+    "Link Cable",
+    "Deep Sea Tooth",
+    "Prism Scale",
+    "Razor Claw",
+    "Razor Fang",
+    "Electirizer",
+    "Magmarizer",
+    "Damascus Steel",
+    "Soothe Bell",
+    "Everstone",
+    "Choice Band",
+    "Life Orb",
+    "Leftovers",
+    "Focus Sash",
+]
+
+COLOR_POOL = [
+    "Red",
+    "Blue",
+    "Green",
+    "Yellow",
+    "Orange",
+    "Purple",
+    "Pink",
+    "White",
+    "Black",
+    "Brown",
+    "Gray",
+    "Grey",
+    "Gold",
+    "Silver",
+    "Light Blue",
+    "Dark Blue",
+    "Light Green",
+    "Dark Green",
+]
+
+TRAIT_POOL = [
+    "Blue with orange fins",
+    "Red and white",
+    "Yellow and black",
+    "Blue and yellow",
+    "Black and white",
+    "Multi-colored",
+    "Spotted",
+    "Striped",
+    "Golden",
+    "Silver",
+]
+
+
+def categorize_answer(answer):
+    if answer in POKEMON_NAMES_POOL:
+        return "pokemon"
+    if answer in TYPE_POOL or "/" in answer:
+        return "type"
+    if answer.replace("%", "").replace(" ", "").isdigit() or answer in NUMBER_POOL:
+        return "number"
+    if any(region.lower() in answer.lower() for region in REGION_POOL):
+        return "region"
+    if answer.startswith("Professor") or answer in ["Satoshi", "Ash"]:
+        return "professor"
+    if answer in COLOR_POOL:
+        return "color"
+    if any(
+        item in answer for item in ["Stone", "Ball", "Orb", "Coat", "Scale", "Bell"]
+    ):
+        return "item"
+    if "with" in answer.lower() or "and" in answer or "or" in answer:
+        return "trait"
+    if len(answer.split()) > 2:
+        return "phrase"
+    return "pokemon"
+
+
+def get_wrong_options_pool(correct, category):
+    pools = {
+        "pokemon": POKEMON_NAMES_POOL,
+        "type": TYPE_POOL,
+        "number": NUMBER_POOL,
+        "region": REGION_POOL,
+        "professor": PROFESSOR_POOL,
+        "color": COLOR_POOL,
+        "item": ITEM_POOL,
+        "trait": TRAIT_POOL,
+    }
+    pool = pools.get(category, POKEMON_NAMES_POOL)
+    return [p for p in pool if p != correct]
+
+
 def generate_options(correct, all_pokemon):
+    category = categorize_answer(correct)
+    wrong_pool = get_wrong_options_pool(correct, category)
+
+    if len(wrong_pool) < 3:
+        wrong_pool = [p for p in POKEMON_NAMES_POOL if p != correct]
+
     options = [correct]
-    unique_pokemon = list(set(p for p in all_pokemon if p != correct))
-    shuffled_others = shuffle_array(unique_pokemon)[:3]
+    shuffled_others = shuffle_array(wrong_pool)[:3]
     options.extend(shuffled_others)
     shuffled_options = shuffle_array(options)
     labels = ["A", "B", "C", "D"]
@@ -895,6 +1205,8 @@ ALL_POKEMON = [
     "Clobbopus",
     "Centiskorch",
 ]
+
+POKEMON_NAMES_POOL = list(set(ALL_POKEMON))
 
 QUESTIONS = {
     "general": [
