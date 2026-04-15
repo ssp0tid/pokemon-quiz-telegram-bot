@@ -10,8 +10,8 @@ def shuffle_array(arr):
 
 def generate_options(correct, all_pokemon):
     options = [correct]
-    others = [p for p in all_pokemon if p != correct]
-    shuffled_others = shuffle_array(others)[:3]
+    unique_pokemon = list(set(p for p in all_pokemon if p != correct))
+    shuffled_others = shuffle_array(unique_pokemon)[:3]
     options.extend(shuffled_others)
     shuffled_options = shuffle_array(options)
     labels = ["A", "B", "C", "D"]

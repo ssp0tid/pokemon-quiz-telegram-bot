@@ -204,7 +204,7 @@ async def main():
         text = "🏆 *Global Leaderboard*\n\n"
 
         for i, player in enumerate(top_players):
-            name = player["first_name"] or player["username"] or "Anonymous"
+            name = player["first_name"] or "Anonymous"
             text += f"{emojis[i]} {name}: {player['score']} pts\n"
 
         await event.reply(text, parse_mode="md")
@@ -224,7 +224,7 @@ async def main():
         text = "📅 *Today's Top Players*\n\n"
 
         for i, player in enumerate(top_players):
-            name = player["first_name"] or player["username"] or "Anonymous"
+            name = player["first_name"] or "Anonymous"
             acc = (
                 round((player["correct_answers"] / player["questions_answered"]) * 100)
                 if player["questions_answered"] > 0
@@ -249,7 +249,7 @@ async def main():
         text = "📅 *This Week's Top Players*\n\n"
 
         for i, player in enumerate(top_players):
-            name = player["first_name"] or player["username"] or "Anonymous"
+            name = player["first_name"] or "Anonymous"
             acc = (
                 round((player["correct_answers"] / player["questions_answered"]) * 100)
                 if player["questions_answered"] > 0
@@ -326,6 +326,64 @@ async def main():
         game = QuizGame(client, event, user_id, on_end_callback=on_game_end)
         active_games[user_id] = game
         asyncio.create_task(game.start(category))
+
+    @client.on(
+        events.NewMessage(
+            func=lambda e: e.message.message in ["🎮 Play Again", "📊 My Stats"]
+        )
+    )
+    async def handle_menu_response(event):
+        user_id = event.sender.id
+        text = event.message.message
+
+        if user_id in active_games:
+            return
+
+        if text == "🎮 Play Again":
+            keyboard = build_category_keyboard()
+            await event.reply(
+                "🎮 *Select a Category*\n\nChoose your Pokemon quiz category:",
+                buttons=keyboard,
+                parse_mode="md",
+            )
+        elif text == "📊 My Stats":
+            stats = get_user_stats(user_id)
+
+            if not stats:
+                await event.reply("❌ No stats found. Play a quiz first!")
+                return
+
+            accuracy = (
+                round((stats["total_correct"] / stats["total_questions"]) * 100)
+                if stats["total_questions"] > 0
+                else 0
+            )
+
+            category_text = ""
+            if stats["category_scores"] and len(stats["category_scores"]) > 0:
+                sorted_cats = sorted(
+                    stats["category_scores"].items(), key=lambda x: x[1], reverse=True
+                )[:5]
+                category_text = "\n📊 *Top Categories:*\n"
+                for cat, score in sorted_cats:
+                    cat_info = get_category_by_id(cat)
+                    cat_name = cat_info["name"] if cat_info else cat
+                    category_text += f"• {cat_name}: {score} pts\n"
+
+            await event.reply(
+                f"👤 *Your Stats*\n\n"
+                f"🏆 Global Rank: #{stats['rank']}\n"
+                f"⭐ Total Score: {stats['total_score']}\n"
+                f"✅ Correct: {stats['total_correct']}/{stats['total_questions']}\n"
+                f"📈 Accuracy: {accuracy}%\n"
+                f"🎮 Quizzes: {stats['quizzes_taken']}\n"
+                f"🔥 Current Streak: {stats['streak_current']}\n"
+                f"💎 Best Streak: {stats['streak_best']}\n"
+                f"💡 Hints Used: {stats['hints_used']}\n"
+                f"⏱️ Time Bonus: {stats['time_bonus_earned']} pts"
+                f"{category_text}",
+                parse_mode="md",
+            )
 
     @client.on(events.NewMessage())
     async def handle_answer(event):

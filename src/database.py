@@ -86,10 +86,10 @@ def get_or_create_user(user_id, username, first_name):
         INSERT INTO users (user_id, username, first_name)
         VALUES (?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET
-            username = excluded.username,
-            first_name = excluded.first_name
+            username = COALESCE(excluded.username, users.username),
+            first_name = COALESCE(excluded.first_name, users.first_name)
     """,
-        (user_id, username or "Unknown", first_name or "Player"),
+        (user_id, username, first_name),
     )
     conn.commit()
     cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
@@ -238,9 +238,9 @@ def update_daily_score(user_id, score, questions, correct):
         INSERT INTO leaderboard_daily (user_id, score, date, questions_answered, correct_answers)
         VALUES (?, ?, date('now'), ?, ?)
         ON CONFLICT(user_id, date) DO UPDATE SET
-            score = score + excluded.score,
-            questions_answered = questions_answered + excluded.questions_answered,
-            correct_answers = correct_answers + excluded.correct_answers
+            score = leaderboard_daily.score + excluded.score,
+            questions_answered = leaderboard_daily.questions_answered + excluded.questions_answered,
+            correct_answers = leaderboard_daily.correct_answers + excluded.correct_answers
     """,
         (user_id, score, questions, correct),
     )
@@ -258,9 +258,9 @@ def update_weekly_score(user_id, score, questions, correct):
         INSERT INTO leaderboard_weekly (user_id, score, week_start, questions_answered, correct_answers)
         VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(user_id, week_start) DO UPDATE SET
-            score = score + excluded.score,
-            questions_answered = questions_answered + excluded.questions_answered,
-            correct_answers = correct_answers + excluded.correct_answers
+            score = leaderboard_weekly.score + excluded.score,
+            questions_answered = leaderboard_weekly.questions_answered + excluded.questions_answered,
+            correct_answers = leaderboard_weekly.correct_answers + excluded.correct_answers
     """,
         (user_id, score, week, questions, correct),
     )

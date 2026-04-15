@@ -103,9 +103,8 @@ class QuizGame:
 
         keyboard = ReplyKeyboardMarkup(
             [
-                KeyboardButtonRow(
-                    [KeyboardButton(text=opt[1]) for opt in question["options"]]
-                )
+                KeyboardButtonRow([KeyboardButton(text=opt[1])])
+                for opt in question["options"]
             ],
             resize=True,
         )
@@ -267,6 +266,14 @@ class QuizGame:
         else:
             emoji = "🎮"
 
+        keyboard = ReplyKeyboardMarkup(
+            [
+                KeyboardButtonRow([KeyboardButton(text="🎮 Play Again")]),
+                KeyboardButtonRow([KeyboardButton(text="📊 My Stats")]),
+            ],
+            resize=True,
+        )
+
         await self.reply(
             f"{emoji} *Quiz Complete!*\n\n"
             f"📊 *Results:*\n"
@@ -281,6 +288,7 @@ class QuizGame:
             f"• Current Streak: {stats['streak_current']}\n"
             f"• Best Streak: {stats['streak_best']}\n\n"
             f"Use /quiz to play again or /stats to see your detailed stats!",
+            buttons=keyboard,
             parse_mode="md",
         )
 
